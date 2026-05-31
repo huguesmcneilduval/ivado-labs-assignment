@@ -33,6 +33,8 @@ services:
     image: ivado-labs-assignment:notebook
     container_name: ivado-notebook
     restart: unless-stopped
+    volumes:
+      - ./notebooks:/app/notebooks
     depends_on:
       postgres:
         condition: service_healthy
