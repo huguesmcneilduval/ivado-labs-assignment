@@ -1,9 +1,9 @@
 import unittest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
-from cities.city import City
+from museum_city.city import City
 from initialization.initialize import InitializationError, initialize
-from museums.museum import Museum
+from museum_city.museum import Museum
 
 
 def _city(name: str, country: str, population: int = 0, city_id: int | None = None) -> City:
@@ -19,7 +19,6 @@ class TestInitialize(unittest.TestCase):
         city_repository = MagicMock()
         museum_repository = MagicMock()
         museum_client = MagicMock()
-        city_client = MagicMock()
 
         paris = _city("Paris", "France")
         london = _city("London", "United Kingdom")
@@ -33,18 +32,6 @@ class TestInitialize(unittest.TestCase):
         museum_repository.find_all.return_value = []
         museum_client.fetch_museums.return_value = museums
 
-        resolved_paris = _city("Paris", "France", population=2_100_000)
-        resolved_london = _city("London", "United Kingdom", population=8_900_000)
-
-        def find_city(name: str, country: str) -> City:
-            mapping = {
-                ("Paris", "France"): resolved_paris,
-                ("London", "United Kingdom"): resolved_london,
-            }
-            return mapping[(name, country)]
-
-        city_client.find_city.side_effect = find_city
-
         def save_cities(cities: list[City]) -> list[City]:
             persisted = []
             for index, city in enumerate(cities, start=1):
@@ -53,13 +40,8 @@ class TestInitialize(unittest.TestCase):
 
         city_repository.save_all.side_effect = save_cities
 
-        initialize(museum_client, city_repository, museum_repository, city_client)
+        initialize(museum_client, city_repository, museum_repository)
 
-        self.assertEqual(city_client.find_city.call_count, 2)
-        city_client.find_city.assert_has_calls(
-            [call("Paris", "France"), call("London", "United Kingdom")],
-            any_order=True,
-        )
         city_repository.save_all.assert_called_once()
         museum_repository.save_all.assert_called_once()
 
@@ -71,7 +53,6 @@ class TestInitialize(unittest.TestCase):
         city_repository = MagicMock()
         museum_repository = MagicMock()
         museum_client = MagicMock()
-        city_client = MagicMock()
 
         paris_db = _city("Paris", "France", population=2_100_000, city_id=10)
         london_requested = _city("London", "United Kingdom")
@@ -87,13 +68,10 @@ class TestInitialize(unittest.TestCase):
         museum_repository.find_all.return_value = [existing_museum]
         museum_client.fetch_museums.return_value = source_museums
 
-        resolved_london = _city("London", "United Kingdom", population=8_900_000)
-        city_client.find_city.return_value = resolved_london
         city_repository.save_all.return_value = [_city("London", "United Kingdom", 8_900_000, city_id=11)]
 
-        initialize(museum_client, city_repository, museum_repository, city_client)
+        initialize(museum_client, city_repository, museum_repository)
 
-        city_client.find_city.assert_called_once_with("London", "United Kingdom")
         city_repository.save_all.assert_called_once()
         museum_repository.save_all.assert_called_once()
 
@@ -106,7 +84,6 @@ class TestInitialize(unittest.TestCase):
         city_repository = MagicMock()
         museum_repository = MagicMock()
         museum_client = MagicMock()
-        city_client = MagicMock()
 
         paris = _city("Paris", "France", population=2_100_000, city_id=10)
         london = _city("London", "United Kingdom", population=8_900_000, city_id=11)
@@ -122,25 +99,23 @@ class TestInitialize(unittest.TestCase):
             _museum("British Museum", _city("London", "United Kingdom"), 200),
         ]
 
-        initialize(museum_client, city_repository, museum_repository, city_client)
+        initialize(museum_client, city_repository, museum_repository)
 
-        city_client.find_city.assert_not_called()
         city_repository.save_all.assert_not_called()
         museum_repository.save_all.assert_not_called()
 
-    def test_initialize_raises_when_city_lookup_returns_none(self) -> None:
+    def test_initialize_raises_when_city_is_not_persisted(self) -> None:
         city_repository = MagicMock()
         museum_repository = MagicMock()
         museum_client = MagicMock()
-        city_client = MagicMock()
 
         city_repository.find_all.return_value = []
         museum_repository.find_all.return_value = []
         museum_client.fetch_museums.return_value = [_museum("Louvre", _city("Paris", "France"), 100)]
-        city_client.find_city.return_value = None
+        city_repository.save_all.return_value = []
 
         with self.assertRaises(InitializationError):
-            initialize(museum_client, city_repository, museum_repository, city_client)
+            initialize(museum_client, city_repository, museum_repository)
 
 
 if __name__ == "__main__":

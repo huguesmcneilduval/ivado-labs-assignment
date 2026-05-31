@@ -5,8 +5,8 @@ from typing import Any, Callable
 import psycopg
 from psycopg.errors import ForeignKeyViolation
 
-from cities.city import City
-from museums.museum import Museum
+from museum_city.city import City
+from museum_city.museum import Museum
 from persistence._postgres_repository import _PostgresRepository
 from persistence._postgres_utils import next_ids
 from persistence.museum_repository import MuseumRepository

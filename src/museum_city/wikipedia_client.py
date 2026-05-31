@@ -140,6 +140,10 @@ class WikipediaClient(MuseumClient):
 
     @staticmethod
     def _parse_annual_visitors(value: str) -> int:
+        million_match = re.search(r"(\d+(?:\.\d+)?)\s*million", value, flags=re.IGNORECASE)
+        if million_match:
+            return int(float(million_match.group(1)) * 1_000_000)
+
         match = re.search(r"[\d,]+", value)
         if not match:
             return 0

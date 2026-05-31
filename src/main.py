@@ -2,8 +2,7 @@ import os
 
 from api.server import start_server
 from initialization import initialize
-from museums import WikipediaClient
-from cities import WikipediaCityClient
+from museum_city import WikipediaClient
 from persistence.postgres_city_repository import PostgresCityRepository
 from persistence.postgres_museum_repository import PostgresMuseumRepository
 from prediction.linear_regression_prediction_service import LinearRegressionPredictionService
@@ -42,7 +41,7 @@ if __name__ == "__main__":
 
     if config["initialize_data"]:
         print('Initializing database data...')
-        initialize(city_client=WikipediaCityClient(), city_repository=city_repository, museum_repository=museum_repository, museum_client=WikipediaClient())
+        initialize(city_repository=city_repository, museum_repository=museum_repository, museum_client=WikipediaClient())
 
     prediction_service = LinearRegressionPredictionService(museum_repository)
     start_server(

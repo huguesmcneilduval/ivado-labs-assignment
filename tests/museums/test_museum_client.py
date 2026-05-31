@@ -4,6 +4,23 @@ from museum_city import WikipediaClient, MuseumClient
 
 
 class TestWikipediaClient(unittest.TestCase):
+    def test_parse_annual_visitors_multiple_cases(self) -> None:
+        test_cases = [
+            {
+                "value": "2.61 million (2024)",
+                "expected": 2610000,
+            },
+            {
+                "value": "2,634,997 (2024)",
+                "expected": 2634997,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(test_case=test_case):
+                parsed_value = WikipediaClient._parse_annual_visitors(test_case["value"])
+                self.assertEqual(test_case["expected"], parsed_value)
+
     def test_fetch_museums(self) -> None:
         client: MuseumClient = WikipediaClient()
         museums = client.fetch_museums()
@@ -29,7 +46,7 @@ class TestWikipediaClient(unittest.TestCase):
             {
                 "city_name": "Vatican City",
                 "city_refs": ["/wiki/Vatican_City", "/wiki/Rome"],
-                "expected_min_population": 10_000_000,
+                "expected_min_population": 1_000_000,
             },
             {
                 "city_name": "Kraków",

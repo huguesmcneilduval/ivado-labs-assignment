@@ -4,7 +4,7 @@ from typing import Any, Callable
 
 import psycopg
 
-from cities.city import City
+from museum_city.city import City
 from persistence._postgres_repository import _PostgresRepository
 from persistence._postgres_utils import next_ids
 from persistence.city_repository import CityRepository
