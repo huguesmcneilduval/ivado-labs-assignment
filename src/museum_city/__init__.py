@@ -1,4 +1,4 @@
-from cities import City
+from .city import City
 from .museum import Museum
 from .museum_client import MuseumClient
 from .wikipedia_client import WikipediaClient

@@ -1,6 +1,6 @@
 import unittest
 
-from museums import WikipediaClient, MuseumClient
+from museum_city import WikipediaClient, MuseumClient
 
 
 class TestWikipediaClient(unittest.TestCase):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional, Protocol
 
-from cities.city import City
+from museum_city.city import City
 
 
 class CityClient(Protocol):

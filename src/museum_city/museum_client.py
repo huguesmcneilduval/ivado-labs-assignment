@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from museums.museum import Museum
+from .museum import Museum
 
 
 class MuseumClient(Protocol):

@@ -1,9 +1,35 @@
 import unittest
 
-from cities import WikipediaCityClient
+from cities.wikipedia_city_client import WikipediaCityClient
 
 
 class TestWikipediaCityClient(unittest.TestCase):
+    def test_fetch_population_multiple_cases(self) -> None:
+        client = WikipediaCityClient()
+        test_cases = [
+            {
+                "wikidata_id": "Q340",
+                "expected_min_population": 1000000,
+            },
+            {
+                "wikidata_id": "Q64",
+                "expected_min_population": 3000000,
+            },
+            {
+                "wikidata_id": "Q60",
+                "expected_min_population": 8000000,
+            },
+            {
+                "wikidata_id": "Q0",
+                "expected_min_population": 0,
+            },
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(test_case=test_case):
+                population = client._fetch_population(test_case["wikidata_id"])
+                self.assertGreaterEqual(population, test_case["expected_min_population"])
+
     def test_find_city_multiple_cases(self) -> None:
         client = WikipediaCityClient()
         test_cases = [

@@ -6,7 +6,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from cities.city import City
+from museum_city.city import City
 from cities.city_client import CityClient
 
 

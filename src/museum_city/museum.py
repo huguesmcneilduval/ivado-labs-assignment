@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from cities.city import City
+from .city import City
 
 @dataclass(slots=True, frozen=True)
 class Museum:
