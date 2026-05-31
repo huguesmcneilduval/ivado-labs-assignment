@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 
 
-@dataclass(slots=True, unsafe_hash=True)
+@dataclass(slots=True, frozen=True)
 class City:
-    id: int = field(compare=False, hash=False)
+    id: int | None = field(compare=False, hash=False)
     name: str
     population: int = field(compare=False, hash=False)
     country: str

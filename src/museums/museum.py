@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 
 from cities.city import City
 
-@dataclass(slots=True, unsafe_hash=True)
+@dataclass(slots=True, frozen=True)
 class Museum:
-    id: int = field(compare=False, hash=False)
+    id: int | None = field(compare=False, hash=False)
     name: str
     annual_visitor: int = field(compare=False, hash=False)
     city: City

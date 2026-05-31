@@ -5,7 +5,7 @@ from persistence.museum_repository import MuseumRepository
 from prediction.prediction_service import PredictionService
 
 
-class MachineLearningPerdictionService(PredictionService):
+class LinearRegressionPredictionService(PredictionService):
     def __init__(self, museum_repository: MuseumRepository) -> None:
         print('Starting training model...')
         self._model = LinearRegression()

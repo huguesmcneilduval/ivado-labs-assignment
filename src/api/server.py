@@ -19,6 +19,6 @@ def create_app(prediction_service: PredictionService) -> FastAPI:
 
     return app
 
-def run(prediction_service: PredictionService, host: str = "0.0.0.0", port: int = 8000) -> None:
+def start_server(prediction_service: PredictionService, host: str = "0.0.0.0", port: int = 8000) -> None:
     app = create_app(prediction_service)
     uvicorn.run(app, host=host, port=port)

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from html.parser import HTMLParser
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -82,6 +84,8 @@ class _MuseumTableParser(HTMLParser):
 class WikipediaClient(MuseumClient):
     API_URL = "https://en.wikipedia.org/w/api.php"
     MUSEUM_LIST_PAGE = "List_of_most_visited_museums"
+    MAX_RETRIES = 5
+    MAX_BACKOFF_SECONDS = 10
 
     def fetch_museums(self) -> list[Museum]:
         html = self._fetch_page_html(self.MUSEUM_LIST_PAGE)
@@ -99,8 +103,8 @@ class WikipediaClient(MuseumClient):
             if not name:
                 continue
 
-            city = City(id=index, name=city_name or "Unknown", population=1, country=country or "Unknown")
-            museums.append(Museum(id=index, name=name, annual_visitor=annual_visitor, city=city))
+            city = City(id=None, name=city_name or "Unknown", population=1, country=country or "Unknown")
+            museums.append(Museum(id=None, name=name, annual_visitor=annual_visitor, city=city))
 
         return museums
 
@@ -127,6 +131,14 @@ class WikipediaClient(MuseumClient):
                 "User-Agent": "wikipea/1.0 (https://example.com; contact: dev@example.com)"
             },
         )
-        with urlopen(request) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                with urlopen(request) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                break
+            except HTTPError as error:
+                if error.code != 429 or attempt == self.MAX_RETRIES:
+                    raise
+                backoff_seconds = min(2 ** attempt, self.MAX_BACKOFF_SECONDS)
+                time.sleep(backoff_seconds)
         return payload["parse"]["text"]

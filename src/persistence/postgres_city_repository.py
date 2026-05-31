@@ -1,10 +1,12 @@
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Any, Callable
 
 import psycopg
 
 from cities.city import City
 from persistence._postgres_repository import _PostgresRepository
+from persistence._postgres_utils import next_ids
 from persistence.city_repository import CityRepository
 
 
@@ -81,19 +83,18 @@ class PostgresCityRepository(_PostgresRepository, CityRepository):
 
         with psycopg.connect(self._connection_string) as conn:
             with conn.cursor() as cur:
-                self._assign_missing_ids(
-                    cur=cur,
-                    items=cities,
-                    sequence_name="city_id_seq",
-                    get_id=lambda city: city.id,
-                    set_id=lambda city, generated_id: setattr(city, "id", generated_id),
-                )
+                missing_count = sum(1 for city in cities if city.id is None)
+                generated_ids = iter(next_ids(cur, "city_id_seq", missing_count))
+                cities_with_ids = [
+                    city if city.id is not None else replace(city, id=next(generated_ids))
+                    for city in cities
+                ]
 
                 city_rows = [
                     (city.id, city.name, city.population, city.country)
-                    for city in cities
+                    for city in cities_with_ids
                 ]
                 cur.executemany(city_sql, city_rows)
             conn.commit()
 
-        return cities
+        return cities_with_ids

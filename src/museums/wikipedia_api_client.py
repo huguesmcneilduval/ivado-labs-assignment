@@ -18,6 +18,7 @@ class WikipediaApiClient(MuseumClient):
             language="en",
             user_agent="wikipea/1.0 (https://example.com; contact: dev@example.com)",
         )
+        self._parser = _MuseumTableParser()
 
     def fetch_museums(self) -> list[Museum]:
         page = self._wiki.page(self.MUSEUM_LIST_PAGE)
@@ -37,11 +38,10 @@ class WikipediaApiClient(MuseumClient):
         )
         payload = response.json()
         html = payload["parse"]["text"]
-        parser = _MuseumTableParser()
-        parser.feed(html)
+        self._parser.feed(html)
 
         museums: list[Museum] = []
-        for index, row in enumerate(parser.rows[1:], start=1):
+        for index, row in enumerate(self._parser.rows[1:], start=1):
             if len(row) < 4:
                 continue
             name = row[0].strip()

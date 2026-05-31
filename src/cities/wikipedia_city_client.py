@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import time
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -11,6 +13,8 @@ from cities.city_client import CityClient
 class WikipediaCityClient(CityClient):
     WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
     WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php"
+    MAX_RETRIES = 5
+    MAX_BACKOFF_SECONDS = 10
 
     def find_city(self, city_name: str, country: str) -> City | None:
         normalized_city = city_name.strip()
@@ -35,7 +39,22 @@ class WikipediaCityClient(CityClient):
         )
 
     def _resolve_page_title(self, city_name: str, country: str) -> str | None:
-        candidates = [f"{city_name}, {country}", city_name] if country else [city_name]
+        candidates = []
+
+        for part in city_name.split(","):
+            normalized_part = part.strip().replace(" ", "_")
+            if normalized_part:
+                candidates.append(f"{normalized_part}, {country}")
+                candidates.append(f"{normalized_part}")
+
+        # normalized_candidates: list[str] = []
+        # seen: set[str] = set()
+        # for candidate in candidates:
+        #     normalized_candidate = candidate.replace(" ", "_").strip()
+            # if normalized_candidate and normalized_candidate not in seen:
+            #     normalized_candidates.append(normalized_candidate)
+            #     seen.add(normalized_candidate)
+
         for title in candidates:
             params = {
                 "action": "query",
@@ -104,5 +123,14 @@ class WikipediaCityClient(CityClient):
                 "User-Agent": "wikipea/1.0 (https://example.com; contact: dev@example.com)",
             },
         )
-        with urlopen(request) as response:
-            return json.loads(response.read().decode("utf-8"))
+        for attempt in range(WikipediaCityClient.MAX_RETRIES + 1):
+            try:
+                with urlopen(request) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as error:
+                if error.code != 429 or attempt == WikipediaCityClient.MAX_RETRIES:
+                    raise
+                backoff_seconds = min(2 ** attempt, WikipediaCityClient.MAX_BACKOFF_SECONDS)
+                time.sleep(backoff_seconds)
+
+        raise RuntimeError("Maximum retry exceeded")

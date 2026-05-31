@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Any, Callable
 
 import psycopg
@@ -7,6 +8,7 @@ from psycopg.errors import ForeignKeyViolation
 from cities.city import City
 from museums.museum import Museum
 from persistence._postgres_repository import _PostgresRepository
+from persistence._postgres_utils import next_ids
 from persistence.museum_repository import MuseumRepository
 
 
@@ -99,17 +101,16 @@ class PostgresMuseumRepository(_PostgresRepository, MuseumRepository):
                             "Museum city.id is required when saving museums. "
                         )
 
-                self._assign_missing_ids(
-                    cur=cur,
-                    items=museums,
-                    sequence_name="museum_id_seq",
-                    get_id=lambda museum: museum.id,
-                    set_id=lambda museum, generated_id: setattr(museum, "id", generated_id),
-                )
+                missing_count = sum(1 for museum in museums if museum.id is None)
+                generated_ids = iter(next_ids(cur, "museum_id_seq", missing_count))
+                museums_with_ids = [
+                    museum if museum.id is not None else replace(museum, id=next(generated_ids))
+                    for museum in museums
+                ]
 
                 museum_rows = [
                     (museum.id, museum.name, museum.annual_visitor, museum.city.id)
-                    for museum in museums
+                    for museum in museums_with_ids
                 ]
                 try:
                     cur.executemany(museum_sql, museum_rows)
@@ -119,5 +120,5 @@ class PostgresMuseumRepository(_PostgresRepository, MuseumRepository):
                         "Insert the city first using CityRepository."
                     ) from error
             conn.commit()
-
-        return museums
+        
+        return museums_with_ids
