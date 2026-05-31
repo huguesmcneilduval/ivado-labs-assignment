@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 import re
 import time
 from html.parser import HTMLParser
-from urllib.error import HTTPError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from typing import Any
+
+import wikipediaapi
 
 from cities.city import City
 from museums.museum import Museum
@@ -83,15 +82,20 @@ class _MuseumTableParser(HTMLParser):
 
 class WikipediaClient(MuseumClient):
     API_URL = "https://en.wikipedia.org/w/api.php"
-    MUSEUM_LIST_PAGE = "List_of_most_visited_museums"
+    MUSEUM_LIST_PAGE = "List_of_most-visited_museums"
     MAX_RETRIES = 5
     MAX_BACKOFF_SECONDS = 10
+
+    def __init__(self) -> None:
+        self._wiki: Any = wikipediaapi.Wikipedia(
+            language="en",
+            user_agent="wikipea/1.0 (https://example.com; contact: dev@example.com)",
+        )
 
     def fetch_museums(self) -> list[Museum]:
         html = self._fetch_page_html(self.MUSEUM_LIST_PAGE)
         parser = _MuseumTableParser()
         parser.feed(html)
-
         museums: list[Museum] = []
         for index, row in enumerate(parser.rows[1:], start=1):
             if len(row) < 4:
@@ -102,9 +106,10 @@ class WikipediaClient(MuseumClient):
             country = row[3].strip()
             if not name:
                 continue
-
-            city = City(id=None, name=city_name or "Unknown", population=1, country=country or "Unknown")
-            museums.append(Museum(id=None, name=name, annual_visitor=annual_visitor, city=city))
+            if not city_name or not country:
+                raise Error(f"Invalid museum {museum}. City name or country not found")
+            city = City(name=city_name, country=country, id=None, population=None)
+            museums.append(Museum(id=index, name=name, annual_visitor=annual_visitor, city=city))
 
         return museums
 
@@ -116,29 +121,29 @@ class WikipediaClient(MuseumClient):
         return int(match.group(0).replace(",", ""))
 
     def _fetch_page_html(self, page_title: str) -> str:
-        params = {
-            "action": "parse",
-            "page": page_title,
-            "prop": "text",
-            "format": "json",
-            "formatversion": "2",
-            "redirects": "1",
-        }
-        url = f"{self.API_URL}?{urlencode(params)}"
-        request = Request(
-            url,
-            headers={
-                "User-Agent": "wikipea/1.0 (https://example.com; contact: dev@example.com)"
-            },
-        )
+        page = self._wiki.page(page_title)
+        if not page.exists():
+            return ""
+
         for attempt in range(self.MAX_RETRIES + 1):
-            try:
-                with urlopen(request) as response:
-                    payload = json.loads(response.read().decode("utf-8"))
-                break
-            except HTTPError as error:
-                if error.code != 429 or attempt == self.MAX_RETRIES:
-                    raise
-                backoff_seconds = min(2 ** attempt, self.MAX_BACKOFF_SECONDS)
-                time.sleep(backoff_seconds)
-        return payload["parse"]["text"]
+            response = self._wiki._client.get(
+                self.API_URL,
+                params={
+                    "action": "parse",
+                    "page": page.title,
+                    "prop": "text",
+                    "format": "json",
+                    "formatversion": "2",
+                    "redirects": "1",
+                },
+            )
+            if response.status_code != 429:
+                response.raise_for_status()
+                payload = response.json()
+                return payload["parse"]["text"]
+            if attempt == self.MAX_RETRIES:
+                response.raise_for_status()
+            backoff_seconds = min(2 ** attempt, self.MAX_BACKOFF_SECONDS)
+            time.sleep(backoff_seconds)
+
+        raise RuntimeError("Maximum retry exceeded")
