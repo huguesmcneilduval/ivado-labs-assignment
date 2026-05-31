@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from typing import Protocol
 
-from museums.museum import Museum
+from museum_city.museum import Museum
 
 
 class MuseumRepository(Protocol):

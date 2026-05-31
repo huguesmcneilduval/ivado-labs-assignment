@@ -1,5 +1,5 @@
-from cities.city import City
-from museums.museum import Museum
+from museum_city.city import City
+from museum_city.museum import Museum
 from persistence.city_repository import CityRepository
 from persistence.entities import CityModel, MuseumModel
 from persistence.museum_repository import MuseumRepository

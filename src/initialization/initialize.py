@@ -1,7 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from cities.city import City
-from cities.city_client import CityClient
+from museum_city.city import City
 from museums.museum import Museum
 from museums.museum_client import MuseumClient
 from persistence.city_repository import CityRepository

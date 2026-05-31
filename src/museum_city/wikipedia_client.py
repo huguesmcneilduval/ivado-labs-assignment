@@ -6,9 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from threading import Lock
 from typing import Any
+from urllib.parse import unquote
 
 import wikipediaapi
-
 from museum_city.city import City
 from museum_city.museum import Museum
 from museum_city.museum_client import MuseumClient
@@ -23,7 +23,7 @@ class _MuseumTableParser(HTMLParser):
         self._in_cell = False
         self._current_cell_tag: str | None = None
         self._cell_text: list[str] = []
-        self._cell_link: str | None = None
+        self._cell_links: list[str] = []
         self._row_cells: list[dict[str, str | None]] = []
         self._rows: list[list[dict[str, str | None]]] = []
 
@@ -56,13 +56,13 @@ class _MuseumTableParser(HTMLParser):
             self._in_cell = True
             self._current_cell_tag = tag
             self._cell_text = []
-            self._cell_link = None
+            self._cell_links = []
             return
 
-        if self._in_row and self._in_cell and tag == "a" and self._cell_link is None:
+        if self._in_row and self._in_cell and tag == "a":
             href = attr_map.get("href", "")
             if href.startswith("/wiki/") and not href.startswith("/wiki/File:"):
-                self._cell_link = href
+                self._cell_links.append(href)
 
     def handle_endtag(self, tag: str) -> None:
         if self._in_target_table and tag == "table":
@@ -76,11 +76,12 @@ class _MuseumTableParser(HTMLParser):
 
         if self._in_row and tag in {"th", "td"} and self._in_cell and self._current_cell_tag == tag:
             text = " ".join("".join(self._cell_text).split())
-            self._row_cells.append({"text": text, "link": self._cell_link})
+            self._row_cells.append({"text": text, "link": self._cell_links[0] if self._cell_links else None,
+                                    "links": "|".join(self._cell_links)})
             self._in_cell = False
             self._current_cell_tag = None
             self._cell_text = []
-            self._cell_link = None
+            self._cell_links = []
             return
 
         if self._in_row and tag == "tr":
@@ -126,14 +127,14 @@ class WikipediaClient(MuseumClient):
         name = (row[0].get("text") or "").strip()
         annual_visitor = self._parse_annual_visitors(row[1].get("text") or "")
         city_name = (row[2].get("text") or "").strip()
-        city_href = row[2].get("link")
+        city_hrefs = self._parse_cell_links(row[2].get("links"))
         country = (row[3].get("text") or "").strip()
         if not name:
             return None
         if not city_name or not country:
             return None
 
-        population = self._fetch_city_population(city_name, city_href)
+        population = self._fetch_city_population(city_name, city_hrefs)
         city = City(name=city_name, country=country, id=None, population=population)
         return Museum(id=index, name=name, annual_visitor=annual_visitor, city=city)
 
@@ -151,11 +152,26 @@ class WikipediaClient(MuseumClient):
             return 0
         return int(match.group(0).replace(",", ""))
 
-    def _fetch_city_population(self, city_name: str, city_href: str | None) -> int:
-        if city_href:
-            page_title = city_href.removeprefix("/wiki/").replace("_", " ")
-        else:
-            page_title = city_name
+    @staticmethod
+    def _parse_cell_links(links: str | None) -> list[str]:
+        if not links:
+            return []
+        return [link for link in links.split("|") if link]
+
+    def _fetch_city_population(self, city_name: str, city_hrefs: list[str]) -> int:
+        page_titles: list[str] = [
+            unquote(href.removeprefix("/wiki/")).replace("_", " ") for href in city_hrefs
+        ]
+        if not page_titles:
+            page_titles = [city_name]
+
+        populations: list[int] = []
+        for page_title in page_titles:
+            populations.append(self._fetch_population_from_page(page_title))
+
+        return max(populations) if populations else 0
+
+    def _fetch_population_from_page(self, page_title: str) -> int:
 
         with self._city_population_cache_lock:
             if page_title in self._city_population_cache:
@@ -169,6 +185,7 @@ class WikipediaClient(MuseumClient):
 
         parser = _CityPopulationParser()
         parser.feed(city_html)
+        parser.close()
         population = parser.population or 0
         with self._city_population_cache_lock:
             self._city_population_cache[page_title] = population
@@ -214,6 +231,8 @@ class _CityPopulationParser(HTMLParser):
         self._header_text: list[str] = []
         self._data_text: list[str] = []
         self.population: int | None = None
+        self._population_candidates: list[int] = []
+        self._in_population_section = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr_map = {name: value or "" for name, value in attrs}
@@ -265,8 +284,7 @@ class _CityPopulationParser(HTMLParser):
         if self._in_row and tag == "tr":
             header = " ".join("".join(self._header_text).split()).lower()
             data = " ".join("".join(self._data_text).split())
-            if self.population is None and "population" in header:
-                self.population = WikipediaClient._parse_population(data)
+            self._process_population_row(header, data)
             self._in_row = False
             self._header_text = []
             self._data_text = []
@@ -276,3 +294,47 @@ class _CityPopulationParser(HTMLParser):
             self._header_text.append(data)
         if self._in_infobox and self._in_row and self._in_data:
             self._data_text.append(data)
+
+    def close(self) -> None:
+        super().close()
+        if self._population_candidates:
+            self.population = max(self._population_candidates)
+        elif self.population is None:
+            self.population = 0
+
+    def _process_population_row(self, header: str, data: str) -> None:
+        if not header and not data:
+            return
+
+        if "population" in header:
+            self._in_population_section = True
+        elif self._in_population_section and header and not self._is_population_subrow_header(header):
+            self._in_population_section = False
+
+        if "density" in header or "rank" in header or "demonym" in header:
+            return
+
+        if "population" in header:
+            self._population_candidates.extend(self._extract_population_numbers(data))
+            return
+
+        if self._in_population_section:
+            self._population_candidates.extend(self._extract_population_numbers(data))
+
+    @staticmethod
+    def _is_population_subrow_header(header: str) -> bool:
+        return bool(
+            re.search(
+                r"(total|urban|metro|city|proper|municipality|estimate|census|as of|area|density|rank|capital|region|zone|district)",
+                header,
+            )
+        )
+
+    @staticmethod
+    def _extract_population_numbers(value: str) -> list[int]:
+        candidates: list[int] = []
+        for token in re.findall(r"\b\d[\d,]{2,}\b", value):
+            number = int(token.replace(",", ""))
+            if number >= 100_000:
+                candidates.append(number)
+        return candidates

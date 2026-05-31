@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 
 from collections.abc import Iterator
 
-from museums import Museum
+from museum_city import Museum
 from persistence.museum_repository import MuseumRepository
 from prediction.prediction_service import PredictionService
 
