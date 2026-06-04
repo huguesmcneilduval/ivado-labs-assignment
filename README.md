@@ -11,3 +11,18 @@ Deliverables:
 2. A jupyter notebook hosted in docker should also be created. This notebook should  programmatically use your other code to visually present the results of your regression model.
 
 You will be evaluated not only on how your code works but also on the rationale for the choices you make. Consider the assignment in the context of a PR review to commit your submission to the team's codebase.
+
+# Install
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install .
+```
+
+#  Run
+```bash
+docker compose --profile notebook up # Only notebook (with Postgres)
+docker compose --profile app up # Only app (with Postgres)
+docker compose --profile app,notebook up # All services
+docker compose up # Only Postgres
+```

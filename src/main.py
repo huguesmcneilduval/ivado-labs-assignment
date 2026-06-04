@@ -43,7 +43,7 @@ museum_client = WikipediaClient()
 if __name__ == "__main__":
     if config["initialize_data"]:
         print('Initializing database data...')
-        initialize(city_repository=city_repository, museum_repository=museum_repository, museum_client=wikipedia_client)
+        initialize(city_repository=city_repository, museum_repository=museum_repository, museum_client=museum_client)
 
     prediction_service = LinearRegressionPredictionService(museum_repository)
     start_server(

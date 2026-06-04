@@ -8,7 +8,7 @@ from psycopg.errors import ForeignKeyViolation
 from museum_city.city import City
 from museum_city.museum import Museum
 from persistence._postgres_repository import _PostgresRepository
-from persistence._postgres_utils import next_ids
+
 from persistence.museum_repository import MuseumRepository
 
 
@@ -102,7 +102,7 @@ class PostgresMuseumRepository(_PostgresRepository, MuseumRepository):
                         )
 
                 missing_count = sum(1 for museum in museums if museum.id is None)
-                generated_ids = iter(next_ids(cur, "museum_id_seq", missing_count))
+                generated_ids = iter(self._next_ids(cur, "museum_id_seq", missing_count))
                 museums_with_ids = [
                     museum if museum.id is not None else replace(museum, id=next(generated_ids))
                     for museum in museums

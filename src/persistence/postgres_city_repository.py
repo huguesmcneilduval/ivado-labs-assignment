@@ -6,7 +6,7 @@ import psycopg
 
 from museum_city.city import City
 from persistence._postgres_repository import _PostgresRepository
-from persistence._postgres_utils import next_ids
+
 from persistence.city_repository import CityRepository
 
 
@@ -84,7 +84,7 @@ class PostgresCityRepository(_PostgresRepository, CityRepository):
         with psycopg.connect(self._connection_string) as conn:
             with conn.cursor() as cur:
                 missing_count = sum(1 for city in cities if city.id is None)
-                generated_ids = iter(next_ids(cur, "city_id_seq", missing_count))
+                generated_ids = iter(self._next_ids(cur, "city_id_seq", missing_count))
                 cities_with_ids = [
                     city if city.id is not None else replace(city, id=next(generated_ids))
                     for city in cities

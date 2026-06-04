@@ -6,12 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "ivado-labs-assignment"
 version = "0.1.0"
 dependencies = [
-    "scikit-learn",
-    "psycopg[binary]",
+    "scikit-learn==1.8.0",
+    "psycopg[binary]==3.3.4",
     "fastapi==0.115.6",
-    "starlette==0.41.3",
     "uvicorn==0.32.1",
-    "wikipedia-api"
+    "wikipedia-api==0.15.0"
 ]
 
 [project.optional-dependencies]
