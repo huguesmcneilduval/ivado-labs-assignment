@@ -24,7 +24,6 @@ class LinearRegressionPredictionService(PredictionService):
             y_array = np.array(y)
             self._model.fit(X_array, y_array)
             self._is_trained = True
-            self._correlation = float(np.corrcoef(X_array.flatten(), y_array)[0, 1])
         print('Model is trained')
 
     def predict(self, population: int) -> int:
@@ -34,6 +33,3 @@ class LinearRegressionPredictionService(PredictionService):
         prediction = self._model.predict(np.array([[population]]))[0]
         return int(prediction)
 
-    def correlation(self) -> float | None:
-        """Return the Pearson correlation between population and annual_visitor on the training data, or None if not enough data."""
-        return self._correlation

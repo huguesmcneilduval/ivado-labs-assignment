@@ -13,88 +13,6 @@ from museum_city.city import City
 from museum_city.museum import Museum
 from museum_city.museum_client import MuseumClient
 
-
-class _MuseumTableParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self._in_target_table = False
-        self._table_depth = 0
-        self._in_row = False
-        self._in_cell = False
-        self._current_cell_tag: str | None = None
-        self._cell_text: list[str] = []
-        self._cell_links: list[str] = []
-        self._row_cells: list[dict[str, str | None]] = []
-        self._rows: list[list[dict[str, str | None]]] = []
-
-    @property
-    def rows(self) -> list[list[dict[str, str | None]]]:
-        return self._rows
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attr_map = {name: value or "" for name, value in attrs}
-        classes = set(attr_map.get("class", "").split())
-
-        if tag == "table" and not self._in_target_table and "wikitable" in classes:
-            self._in_target_table = True
-            self._table_depth = 1
-            return
-
-        if self._in_target_table and tag == "table":
-            self._table_depth += 1
-            return
-
-        if not self._in_target_table:
-            return
-
-        if tag == "tr":
-            self._in_row = True
-            self._row_cells = []
-            return
-
-        if self._in_row and tag in {"th", "td"}:
-            self._in_cell = True
-            self._current_cell_tag = tag
-            self._cell_text = []
-            self._cell_links = []
-            return
-
-        if self._in_row and self._in_cell and tag == "a":
-            href = attr_map.get("href", "")
-            if href.startswith("/wiki/") and not href.startswith("/wiki/File:"):
-                self._cell_links.append(href)
-
-    def handle_endtag(self, tag: str) -> None:
-        if self._in_target_table and tag == "table":
-            self._table_depth -= 1
-            if self._table_depth == 0:
-                self._in_target_table = False
-            return
-
-        if not self._in_target_table:
-            return
-
-        if self._in_row and tag in {"th", "td"} and self._in_cell and self._current_cell_tag == tag:
-            text = " ".join("".join(self._cell_text).split())
-            self._row_cells.append({"text": text, "link": self._cell_links[0] if self._cell_links else None,
-                                    "links": "|".join(self._cell_links)})
-            self._in_cell = False
-            self._current_cell_tag = None
-            self._cell_text = []
-            self._cell_links = []
-            return
-
-        if self._in_row and tag == "tr":
-            if self._row_cells:
-                self._rows.append(self._row_cells)
-            self._in_row = False
-            self._row_cells = []
-
-    def handle_data(self, data: str) -> None:
-        if self._in_target_table and self._in_row and self._in_cell:
-            self._cell_text.append(data)
-
-
 class WikipediaClient(MuseumClient):
     API_URL = "https://en.wikipedia.org/w/api.php"
     MUSEUM_LIST_PAGE = "List_of_most-visited_museums"
@@ -223,6 +141,85 @@ class WikipediaClient(MuseumClient):
 
         raise RuntimeError("Maximum retry exceeded")
 
+class _MuseumTableParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self._in_target_table = False
+        self._table_depth = 0
+        self._in_row = False
+        self._in_cell = False
+        self._current_cell_tag: str | None = None
+        self._cell_text: list[str] = []
+        self._cell_links: list[str] = []
+        self._row_cells: list[dict[str, str | None]] = []
+        self._rows: list[list[dict[str, str | None]]] = []
+
+    @property
+    def rows(self) -> list[list[dict[str, str | None]]]:
+        return self._rows
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr_map = {name: value or "" for name, value in attrs}
+        classes = set(attr_map.get("class", "").split())
+
+        if tag == "table" and not self._in_target_table and "wikitable" in classes:
+            self._in_target_table = True
+            self._table_depth = 1
+            return
+
+        if self._in_target_table and tag == "table":
+            self._table_depth += 1
+            return
+
+        if not self._in_target_table:
+            return
+
+        if tag == "tr":
+            self._in_row = True
+            self._row_cells = []
+            return
+
+        if self._in_row and tag in {"th", "td"}:
+            self._in_cell = True
+            self._current_cell_tag = tag
+            self._cell_text = []
+            self._cell_links = []
+            return
+
+        if self._in_row and self._in_cell and tag == "a":
+            href = attr_map.get("href", "")
+            if href.startswith("/wiki/") and not href.startswith("/wiki/File:"):
+                self._cell_links.append(href)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._in_target_table and tag == "table":
+            self._table_depth -= 1
+            if self._table_depth == 0:
+                self._in_target_table = False
+            return
+
+        if not self._in_target_table:
+            return
+
+        if self._in_row and tag in {"th", "td"} and self._in_cell and self._current_cell_tag == tag:
+            text = " ".join("".join(self._cell_text).split())
+            self._row_cells.append({"text": text, "link": self._cell_links[0] if self._cell_links else None,
+                                    "links": "|".join(self._cell_links)})
+            self._in_cell = False
+            self._current_cell_tag = None
+            self._cell_text = []
+            self._cell_links = []
+            return
+
+        if self._in_row and tag == "tr":
+            if self._row_cells:
+                self._rows.append(self._row_cells)
+            self._in_row = False
+            self._row_cells = []
+
+    def handle_data(self, data: str) -> None:
+        if self._in_target_table and self._in_row and self._in_cell:
+            self._cell_text.append(data)
 
 class _CityPopulationParser(HTMLParser):
     def __init__(self) -> None:

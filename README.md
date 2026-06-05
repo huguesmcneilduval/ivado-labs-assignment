@@ -22,7 +22,7 @@ pip install .
 #  Run
 ```bash
 docker compose --profile notebook up # Only notebook (with Postgres)
-docker compose --profile app up # Only app (with Postgres)
-docker compose --profile app,notebook up # All services
+docker compose --profile app up --build # Only app (with Postgres)
+docker compose --profile app,notebook up --build # All services
 docker compose up # Only Postgres
 ```

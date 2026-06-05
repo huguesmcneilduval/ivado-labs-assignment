@@ -1,7 +1,7 @@
 import unittest
 
-from cities import City
-from museums import Museum
+from museum_city import City
+from museum_city import Museum
 
 
 class TestMuseumEquality(unittest.TestCase):

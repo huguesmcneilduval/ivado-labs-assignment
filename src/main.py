@@ -1,11 +1,10 @@
 import os
 
-from api.server import start_server
+from api import start_server
 from initialization import initialize
-from museum_city import WikipediaClient
-from persistence.postgres_city_repository import PostgresCityRepository
-from persistence.postgres_museum_repository import PostgresMuseumRepository
-from prediction.linear_regression_prediction_service import LinearRegressionPredictionService
+from museum_city import WikipediaClient, MuseumClient
+from persistence import CityRepository, MuseumRepository, PostgresCityRepository, PostgresMuseumRepository
+from prediction import LinearRegressionPredictionService
 
 config = {
     "db_name": os.getenv("DB_NAME", "postgres"),
@@ -20,7 +19,7 @@ config = {
     "initialize_data": os.getenv("INITIALIZE_DATA", "true").strip().lower() in {"1", "true", "yes", "on"},
 }
 
-city_repository = PostgresCityRepository(
+city_repository: CityRepository = PostgresCityRepository(
     dbname=config["db_name"],
     user=config["db_user"],
     password=config["db_password"],
@@ -29,7 +28,7 @@ city_repository = PostgresCityRepository(
     initialize_schema=config["db_init_schema"],
 )
 
-museum_repository = PostgresMuseumRepository(
+museum_repository: MuseumRepository = PostgresMuseumRepository(
     dbname=config["db_name"],
     user=config["db_user"],
     password=config["db_password"],
@@ -38,7 +37,7 @@ museum_repository = PostgresMuseumRepository(
     initialize_schema=config["db_init_schema"],
 )
 
-museum_client = WikipediaClient()
+museum_client: MuseumClient = WikipediaClient()
 
 if __name__ == "__main__":
     if config["initialize_data"]:

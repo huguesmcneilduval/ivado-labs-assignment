@@ -1,6 +1,6 @@
 import unittest
 
-from cities.city import City
+from museum_city.city import City
 
 
 class TestCity(unittest.TestCase):

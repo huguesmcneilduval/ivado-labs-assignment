@@ -1,8 +1,8 @@
 from collections.abc import Iterator
 import unittest
 
-from cities import City
-from museums import Museum
+from museum_city import City
+from museum_city import Museum
 from persistence.museum_repository import MuseumRepository
 from prediction.linear_regression_prediction_service import LinearRegressionPredictionService
 from prediction.sgd_regressor_prediction_service import SgdRegressorPredictionService
